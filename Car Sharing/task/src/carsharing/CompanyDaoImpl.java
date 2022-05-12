@@ -1,14 +1,13 @@
 package carsharing;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CompanyDaoImpl implements CompanyDao {
     private static CompanyDaoImpl companyDaoImpl;
-    Connection conn;
+    private Connection conn;
 
     private CompanyDaoImpl() {
     }
@@ -33,33 +32,26 @@ public class CompanyDaoImpl implements CompanyDao {
      * @param dataBaseName Database name.
      */
     void initDataBase(String dataBaseName) {
-        if (!Files.exists(Paths.get("./src/carsharing/db/" + dataBaseName + ".mv.db"))) {
-            String tableName = "COMPANY";
-            String columns = "ID INT PRIMARY KEY AUTO_INCREMENT, " +
-                    "NAME VARCHAR(200) UNIQUE NOT NULL";
-            createTable(tableName, columns);
-        }
+        String tableName = "COMPANY";
+        String columns = "ID INT PRIMARY KEY AUTO_INCREMENT, " +
+                "NAME VARCHAR(200) UNIQUE NOT NULL";
+        createTable(tableName, columns);
     }
 
     @Override
-    public boolean createTable(String tableName, String columnsQuery) {
+    public void createTable(String tableName, String columnsQuery) {
         String statement = "CREATE TABLE IF NOT EXISTS " + tableName + " (" + columnsQuery + ");";
-        System.out.println(makeStatement(statement));
-        return makeStatement(statement);
+        try {
+            makeStatement(statement);
+        } catch (SQLException e) {
+            System.out.println("A table with the given name exists");
+        }
     }
 
-    private boolean makeStatement(String query) {
-        boolean isDone = true;
-        try {
-            Statement st = conn.createStatement();
-            st.executeUpdate(query);
-            st.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            isDone = false;
-        }
-
-        return isDone;
+    private void makeStatement(String query) throws SQLException {
+        Statement st = conn.createStatement();
+        st.executeUpdate(query);
+        st.close();
     }
 
     /**
@@ -90,7 +82,6 @@ public class CompanyDaoImpl implements CompanyDao {
     @Override
     public List<Company> getAllCompany(String tableName) {
         List<Company> companies = new ArrayList<>();
-
         try {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery("SELECT * FROM " + tableName + ";");
@@ -102,6 +93,7 @@ public class CompanyDaoImpl implements CompanyDao {
             }
 
         } catch (SQLException e) {
+            System.out.println("Data cannot be retrieved");
             e.printStackTrace();
             return null;
         }
@@ -110,21 +102,42 @@ public class CompanyDaoImpl implements CompanyDao {
 
     @Override
     public boolean addCompany(String tableName, String nameColumns, String valueOfColumnsInOrderNameColumns) {
+        String prepareValues = Arrays.stream(valueOfColumnsInOrderNameColumns.split(","))
+                .map(x -> "'" + x + "'")
+                .reduce((a, b) -> a + ", " + b).orElse("errorString");
+
         String addQuery = "INSERT INTO " + tableName + " (" + nameColumns + ") " +
-                "VALUES (" + valueOfColumnsInOrderNameColumns + ");";
-        return makeStatement(addQuery);
+                "VALUES (" + prepareValues + ");";
+        try {
+            makeStatement(addQuery);
+        } catch (SQLException e) {
+            System.out.println("A new company cannot be added");
+            e.printStackTrace();
+            return false;
+        }
+        return true;
     }
 
     @Override
     public void updateCompany(String tableName, int id, String dataToChange) {
         String updateQuery = "UPDATE " + tableName + " SET " + dataToChange + " WHERE ID = " + id + ";";
-        makeStatement(updateQuery);
+        try {
+            makeStatement(updateQuery);
+        } catch (SQLException e) {
+            System.out.println("The company details cannot be updated");
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void deleteCompany(String tableName, int id) {
         String deleteQuery = "DELETE FROM " + tableName + " WHERE ID = " + id;
-        makeStatement(deleteQuery);
+        try {
+            makeStatement(deleteQuery);
+        } catch (SQLException e) {
+            System.out.println("The company cannot be removed");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -142,6 +155,7 @@ public class CompanyDaoImpl implements CompanyDao {
             }
 
         } catch (SQLException e) {
+            System.out.println("Company data cannot be retrieved");
             e.printStackTrace();
         }
 
