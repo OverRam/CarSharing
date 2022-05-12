@@ -12,9 +12,8 @@ public interface CompanyDao {
     /**
      * @param tableName                        The name of the table in which we will make changes
      * @param nameColumns                      The columns we want to add value to. Exp: name, id, code
-     * @param valueOfColumnsInOrderNameColumns Column values in the order given in "nameColumns". Exp: 'mark', 10, 23
+     * @param valueOfColumnsInOrderNameColumns Column values in the order given in "nameColumns". Exp: mark, 10, 23
      *                                         * We give varchar values in single quotes. Exp 'Tom'
-     * @return true if done else false
      */
     boolean addCompany(String tableName, String nameColumns, String valueOfColumnsInOrderNameColumns);
 
@@ -40,7 +39,6 @@ public interface CompanyDao {
      * @param tableName    The name of the new table
      * @param columnsQuery The values of the new table, example: ID INT, NAME VARCHAR(20),
      *                     CITY VARCHAR(10) NOT NULL UNIQUE,
-     * @return If table exist return false
      */
-    boolean createTable(String tableName, String columnsQuery);
+    void createTable(String tableName, String columnsQuery);
 }
