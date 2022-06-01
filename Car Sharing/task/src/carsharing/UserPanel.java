@@ -1,85 +1,62 @@
 package carsharing;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class UserPanel {
-    private Connection connection;
-    private String nameOfDataBase = "carsharing";
-    private final CompanyDaoImpl companyDaoImpl;
     private final Scanner sc = new Scanner(System.in);
 
     public UserPanel() {
-        String patchDataBase = ".\\src\\carsharing\\db\\";
-        String URL_DataBase = patchDataBase + nameOfDataBase;
-        registerDriverClass();
-        companyDaoImpl = CompanyDaoImpl.getInstance();
-        companyDaoImpl.setConnection(connectWithDB(URL_DataBase));
-        companyDaoImpl.initDataBase(nameOfDataBase);
-    }
-
-    void setInitParams(String[] arr) {
-
-        for (int i = 0; i < arr.length; i += 2) {
-            System.out.println(arr[i]);
-            if (arr[i].equals("-databaseFileName")) {
-                nameOfDataBase = arr[i + 1];
-            }
-        }
-    }
-
-    private void registerDriverClass() {
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private Connection connectWithDB(String URL_DataBase) {
-        try {
-            connection = DriverManager.getConnection("jdbc:h2:" + URL_DataBase, "", "");
-            connection.setAutoCommit(true);
-            return connection;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private void closeConnection() {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     public void startMenu() {
         String choice;
         do {
             System.out.println("1. Log in as a manager\n" +
+                    "2. Log in as a customer\n" +
+                    "3. Create a customer\n" +
                     "0. Exit");
+
             choice = sc.nextLine();
+
+            if (!choice.equals("0")) {
+                System.out.println();
+            }
+
             switch (choice) {
-                case "1":
-                    System.out.println();
-                    managerMenu();
-                    break;
                 case "0":
                     break;
+
+                case "1":
+                    managerMenu();
+                    break;
+
+                case "2":
+                    Map<Integer, Customer> customerMap = CustomerManagement.getAllCustomer();
+
+                    if (customerMap.size() < 1) {
+                        System.out.println("The customer list is empty!");
+                    } else {
+                        customerMap.forEach((k, v) -> System.out.println(k + ". " + v.getName() + " customer"));
+                        int customerNum = parseNumber(sc.nextLine());
+                        System.out.println();
+                        customerMenu(customerMap.get(customerNum).getId());
+                    }
+                    break;
+
+                case "3":
+                    System.out.println("Enter the customer name:");
+                    String name = sc.nextLine();
+                    CustomerManagement.addCustomer(new Customer(name));
+                    System.out.println();
+                    break;
+
                 default:
                     System.out.println("Wrong choice try again");
                     startMenu();
             }
         } while (!"0".equals(choice));
-
-        closeConnection();
     }
 
     private void managerMenu() {
@@ -90,22 +67,28 @@ public class UserPanel {
                     "0. Back");
             choice = sc.nextLine();
             System.out.println();
-            String companyTable = "COMPANY";
 
             switch (choice) {
                 case "1":
-                    List<Company> companyList = companyDaoImpl.getAllCompany(companyTable);
-                    if (companyList.size() < 1) {
-                        System.out.println("The company list is empty!");
+                    Map<Integer, Company> companyMap = CompanyManagement.getAllCompany();
+
+                    if (companyMap.size() < 1) {
+                        System.out.println("The company list is empty!\n");
                     } else {
-                        System.out.println("Company list:");
-                        companyList.forEach(c -> System.out.println(c.getId() + ". " + c.getName() + " company"));
+                        System.out.println("Choose the company:");
+                        companyMap.forEach((k, v) -> System.out.println(k + ". " + v.getName() + " company"));
+                        System.out.println("0. Back");
+
+                        int choiceID = parseNumber(sc.nextLine());
+
+                        if (choiceID > 0 && choiceID <= companyMap.size()) {
+                            carCompanyMenu(companyMap.get(choiceID));
+                        }
                     }
-                    System.out.println();
                     break;
                 case "2":
                     System.out.println("Enter the company name:");
-                    companyDaoImpl.addCompany(companyTable, "NAME", sc.nextLine());
+                    CompanyManagement.addCompany(TableName.COMPANY.getName(), "NAME", sc.nextLine());
                     System.out.println("The company was created!\n");
                     break;
                 case "0":
@@ -116,5 +99,151 @@ public class UserPanel {
             }
         } while (!"0".equals(choice));
 
+    }
+
+    private void customerMenu(int customerID) {
+        int choice;
+        do {
+            System.out.println("1. Rent a car\n" +
+                    "2. Return a rented car\n" +
+                    "3. My rented car\n" +
+                    "0. Back");
+            choice = parseNumber(sc.nextLine());
+            System.out.println();
+            Customer customer = CustomerManagement.getCustomer(customerID);
+
+            switch (choice) {
+                case 1:
+                    if (customer.getRentedCarID() == 0) {
+                        System.out.println("Choose a company:");
+
+                        // get all company
+                        Map<Integer, Company> availableCompany = CompanyManagement.getAllCompany();
+                        availableCompany.forEach((n, c) -> System.out.println(n + ". " + c.getName()));
+                        System.out.println("0. Back");
+
+                        int companyNum = parseNumber(sc.nextLine());
+                        //choice company
+                        if (companyNum != 0) {
+                            int companyID = availableCompany.get(companyNum).getId();
+                            System.out.println();
+
+                            //get all cars
+                            HashMap<Integer, CarCompany> availableCars = CarManagement
+                                    .getFreeCarsFromCompany(companyID);
+
+                            if (availableCars.size() < 1) {
+                                System.out.println("No available cars in the '" + availableCompany.get(companyNum).getName()
+                                        + "' company");
+
+
+                            } else {
+                                //choice car
+                                availableCars.forEach((n, c) -> System.out.println(n + ". " + c.getName()));
+                                System.out.println("0. Back");
+
+                                int carNum = parseNumber(sc.nextLine());
+                                System.out.println();
+                                if (carNum != 0) {
+                                    CarCompany car = availableCars.get(carNum);
+                                    CarManagement.rentCar(car, customer);
+                                    System.out.println("You rented '" + car.getName() + "'\n");
+                                }
+                            }
+                        }
+
+
+                    } else {
+                        System.out.println("You've already rented a car!\n");
+                    }
+                    break;
+
+                case 2:
+                    if (customer.getRentedCarID() == 0) {
+                        System.out.println("You didn't rent a car!\n");
+                    } else {
+                        CarManagement.returnCar(customer.getId());
+                        System.out.println("You've returned a rented car!\n");
+                    }
+                    break;
+
+                case 3:
+                    if (customer.getRentedCarID() == 0) {
+                        System.out.println("You didn't rent a car!\n");
+
+                    } else {
+                        CarCompany car = CarManagement.getCar(customer.getRentedCarID());
+                        if (car != null) {
+                            System.out.println("Your rented car:\n" +
+                                    car.getName() +
+                                    "\nCompany:\n" +
+                                    CompanyManagement.getCompanyName(car.getCompanyID()) + "\n");
+                        } else {
+                            System.out.println("Car don't exist!");
+                        }
+
+                    }
+                    break;
+
+                case 0:
+                    break;
+
+                default:
+                    System.out.println("Wrong choice");
+            }
+        } while (choice != 0);
+    }
+
+    private void carCompanyMenu(Company company) {
+        String choice;
+        System.out.println("'" + company.getName() + "' company");
+
+        do {
+            System.out.println("1. Car list\n" +
+                    "2. Create a car\n" +
+                    "0. Back");
+            choice = sc.nextLine();
+            System.out.println();
+
+            int choiceNumber = parseNumber(choice);
+
+            switch (choiceNumber) {
+                case 0:
+                    break;
+
+                case 1:
+                    Company companyInfo = CompanyManagement.getCompany(company.getId());
+
+                    if (companyInfo.getCarsCompany().size() > 0) {
+
+                        companyInfo.getCarsCompany()
+                                .forEach((i, c) -> System.out.println(i + ". " + c.getName()));
+                    } else {
+                        System.out.println("The car list is empty!");
+                    }
+                    break;
+
+                case 2:
+                    System.out.println("Enter the car name:");
+
+                    String carName = sc.nextLine();
+                    CarManagement.addCarToCompany(new CarCompany(carName, company.getId()));
+                    System.out.println("The car was added!");
+                    break;
+
+                default:
+                    System.out.println("Wrong choice");
+            }
+            System.out.println();
+        } while (!"0".equals(choice));
+    }
+
+    private int parseNumber(String number) {
+        try {
+            return Integer.parseInt(number);
+        } catch (NumberFormatException e) {
+            System.out.println("This is not number! Try again.");
+        }
+        return -1;
     }
 }
